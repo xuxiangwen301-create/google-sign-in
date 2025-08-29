@@ -58,7 +58,7 @@ namespace Google.Impl {
         outStringMethod(array, requiredSize);
         str = Encoding.UTF8.GetString(array, 0, (int)requiredSize.ToUInt32() - 1);
       } catch (Exception e) {
-        Debug.LogError("Exception creating string from char array: " + e);
+        Debug.LogWarning("Exception creating string from char array: " + e);
         str = string.Empty;
       }
       return str;

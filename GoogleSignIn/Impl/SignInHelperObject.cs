@@ -27,9 +27,6 @@ namespace Google.Impl {
 
     internal static SignInHelperObject Instance {
       get {
-        if (instance) {
-          return instance;
-        }
         if (Application.isPlaying) {
           // add an invisible game object to the scene
           GameObject obj = new GameObject("GoogleSignInHelperObject");

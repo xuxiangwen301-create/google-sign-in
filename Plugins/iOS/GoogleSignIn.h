@@ -14,9 +14,13 @@
  * limitations under the License.
  */
 #import <GoogleSignIn/GIDSignIn.h>
+#import <GoogleSignIn/GIDConfiguration.h>
 
 @interface GoogleSignInHandler : NSObject
 {
+    @public
+    GIDConfiguration* signInConfiguration;
+
     @public
     NSString* loginHint;
     

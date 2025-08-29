@@ -74,9 +74,9 @@ namespace Google.Impl
           listener.Start();
           return listener;
         }
-        catch(System.Exception e)
+        catch(Exception e)
         {
-          Debug.LogException(e);
+          Debug.LogWarning(e.ToString());
           return null;
         }
       }).FirstOrDefault((listener) => listener != null);
@@ -94,7 +94,7 @@ namespace Google.Impl
       }
       catch(Exception e)
       {
-        Debug.LogException(e);
+        Debug.LogWarning(e.ToString());
         throw;
       }
 
@@ -162,14 +162,7 @@ namespace Google.Impl
         catch(Exception e)
         {
           Status = GoogleSignInStatusCode.ERROR;
-
-          Debug.LogException(e);
-          if(e is AggregateException ae)
-          {
-            foreach(var inner in ae.InnerExceptions)
-              Debug.LogException(inner);
-          }
-
+          Debug.LogWarning(e.ToString());
           throw;
         }
         finally
@@ -194,7 +187,7 @@ namespace Google.Impl
 
       return request.GetResponseAsStringAsync(encoding);
     }
-
+    
     public static async Task<string> GetResponseAsStringAsync(this HttpWebRequest request,Encoding encoding = null)
     {
       using(var response = await request.GetResponseAsync())

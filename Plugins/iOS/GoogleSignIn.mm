@@ -18,7 +18,6 @@
 #import <GoogleSignIn/GIDGoogleUser.h>
 #import <GoogleSignIn/GIDProfileData.h>
 #import <GoogleSignIn/GIDSignIn.h>
-#import <GoogleSignIn/GIDConfiguration.h>
 #import <GoogleSignIn/GIDToken.h>
 #import <UnityAppController.h>
 
@@ -28,26 +27,17 @@
 
 // These values are in the Unity plugin code.  The iOS specific
 // codes are mapped to these.
-static const int g_StatusCode_SUCCESS_CACHE = -1;
-static const int g_StatusCode_SUCCESS = 0;
-static const int g_StatusCode_SIGN_IN_REQUIRED = 4;
-static const int g_StatusCode_INVALID_ACCOUNT = 5;
-static const int g_StatusCode_RESOLUTION_REQUIRED = 6;
-static const int g_StatusCode_NETWORK_ERROR = 7;
-static const int g_StatusCode_INTERNAL_ERROR = 8;
-static const int g_StatusCode_SERVICE_INVALID = 9;
-static const int g_StatusCode_DEVELOPER_ERROR = 10;
-static const int g_StatusCode_LICENSE_CHECK_FAILED = 11;
-static const int g_StatusCode_ERROR = 13;
-static const int g_StatusCode_INTERRUPTED = 14;
-static const int g_StatusCode_TIMEOUT = 15;
-static const int g_StatusCode_CANCELED = 16;
-static const int g_StatusCode_API_NOT_CONNECTED = 17;
-static const int g_StatusCode_DEAD_CLIENT = 18;
-static const int g_StatusCode_REMOTE_EXCEPTION = 19;
-static const int g_StatusCode_CONNECTION_SUSPENDED_DURING_CALL = 20;
-static const int g_StatusCode_RECONNECTION_TIMED_OUT_DURING_UPDATE = 21;
-static const int g_StatusCode_RECONNECTION_TIMED_OUT = 22;
+static const int kStatusCodeSuccessCached = -1;
+static const int kStatusCodeSuccess = 0;
+static const int kStatusCodeApiNotConnected = 1;
+static const int kStatusCodeCanceled = 2;
+static const int kStatusCodeInterrupted = 3;
+static const int kStatusCodeInvalidAccount = 4;
+static const int kStatusCodeTimeout = 5;
+static const int kStatusCodeDeveloperError = 6;
+static const int kStatusCodeInternalError = 7;
+static const int kStatusCodeNetworkError = 8;
+static const int kStatusCodeError = 9;
 
 /**
  * Helper method to pause the Unity player.  This is done when showing any UI.
@@ -117,7 +107,7 @@ NSMutableArray* additionalScopes = nil;
            withError:(NSError *)_error {
   if (_error == nil) {
     if (currentResult_) {
-      currentResult_->result_code = g_StatusCode_SUCCESS;
+      currentResult_->result_code = kStatusCodeSuccess;
       currentResult_->finished = true;
     } else {
       NSLog(@"No currentResult to set status on!");
@@ -128,30 +118,21 @@ NSMutableArray* additionalScopes = nil;
     if (currentResult_) {
       switch (_error.code) {
       case kGIDSignInErrorCodeUnknown:
-        currentResult_->result_code = g_StatusCode_INTERNAL_ERROR;
+        currentResult_->result_code = kStatusCodeError;
         break;
       case kGIDSignInErrorCodeKeychain:
-        currentResult_->result_code = g_StatusCode_SERVICE_INVALID;
+        currentResult_->result_code = kStatusCodeInternalError;
         break;
       case kGIDSignInErrorCodeHasNoAuthInKeychain:
-        currentResult_->result_code = g_StatusCode_SIGN_IN_REQUIRED;
+        currentResult_->result_code = kStatusCodeError;
         break;
       case kGIDSignInErrorCodeCanceled:
-        currentResult_->result_code = g_StatusCode_CANCELED;
-        break;
-      case kGIDSignInErrorCodeEMM:
-        currentResult_->result_code = g_StatusCode_API_NOT_CONNECTED;
-        break;
-      case kGIDSignInErrorCodeScopesAlreadyGranted:
-        currentResult_->result_code = g_StatusCode_RESOLUTION_REQUIRED;
-        break;
-      case kGIDSignInErrorCodeMismatchWithCurrentUser:
-        currentResult_->result_code = g_StatusCode_INVALID_ACCOUNT;
+        currentResult_->result_code = kStatusCodeCanceled;
         break;
       default:
         NSLog(@"Unmapped error code: %ld, returning Error",
               static_cast<long>(_error.code));
-        currentResult_->result_code = g_StatusCode_ERROR;
+        currentResult_->result_code = kStatusCodeError;
       }
 
       currentResult_->finished = true;
@@ -203,11 +184,14 @@ bool GoogleSignIn_Configure(void *unused, bool useGameSignIn,
                             bool requestIdToken, bool hidePopups,
                             const char **additionalScopes, int scopeCount,
                             const char *accountName) {
+    NSString *path = [[NSBundle mainBundle] pathForResource:@"GoogleService-Info" ofType:@"plist"];
+    NSDictionary *dict = [NSDictionary dictionaryWithContentsOfFile:path];
+    NSString *clientId = [dict objectForKey:@"CLIENT_ID"];
+    GIDConfiguration* config = [[GIDConfiguration alloc] initWithClientID:clientId];
     if (webClientId) {
-      NSLog(@"Configure webClientId at runtime");
-      GIDConfiguration* config = [GIDSignIn sharedInstance].configuration;
-      [GIDSignIn sharedInstance].configuration = [[GIDConfiguration alloc] initWithClientID:config.clientID serverClientID:[NSString stringWithUTF8String:webClientId] hostedDomain:config.hostedDomain openIDRealm:config.openIDRealm];
+      config = [[GIDConfiguration alloc] initWithClientID:clientId serverClientID:[NSString stringWithUTF8String:webClientId]];
     }
+    [GoogleSignInHandler sharedInstance]->signInConfiguration = config;
 
     int scopeSize = scopeCount;
     if (scopeSize) {
@@ -233,7 +217,7 @@ static SignInResult *startSignIn() {
   [resultLock lock];
   if (!currentResult_ || currentResult_->finished) {
     currentResult_.reset(new SignInResult());
-    currentResult_->result_code = g_StatusCode_NETWORK_ERROR;
+    currentResult_->result_code = 0;
     currentResult_->finished = false;
   } else {
     busy = true;
@@ -244,7 +228,7 @@ static SignInResult *startSignIn() {
     NSLog(@"ERROR: There is already a pending sign-in operation.");
     // Returned to the caller, should be deleted by calling
     // GoogleSignIn_DisposeFuture().
-    return new SignInResult{.result_code = g_StatusCode_DEVELOPER_ERROR,
+    return new SignInResult{.result_code = kStatusCodeDeveloperError,
                             .finished = true};
   }
   return nullptr;
@@ -315,7 +299,7 @@ int GoogleSignIn_Status(SignInResult *result) {
   if (result) {
     return result->result_code;
   }
-  return g_StatusCode_DEAD_CLIENT;
+  return kStatusCodeDeveloperError;
 }
 
 void GoogleSignIn_DisposeFuture(SignInResult *result) {

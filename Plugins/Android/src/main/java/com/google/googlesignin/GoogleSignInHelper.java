@@ -92,7 +92,7 @@ public class GoogleSignInHelper {
     Exception e = task.getException();
     if(e != null)
     {
-      logError("onFailure with INTERNAL_ERROR : " + e.getClass().toString() + " " + e.getMessage());
+      logWarning("onFailure with INTERNAL_ERROR : " + e.getClass().toString() + " " + e.getMessage());
       return CommonStatusCodes.INTERNAL_ERROR;
     }
 
@@ -270,7 +270,7 @@ public class GoogleSignInHelper {
 
               @Override
               public void onError(@NonNull ClearCredentialException e) {
-                logError(e.getMessage());
+                logWarning(e.getMessage());
               }
             });
   }
@@ -285,6 +285,10 @@ public class GoogleSignInHelper {
 
   public static void logError(String msg) {
     Log.e(TAG, msg);
+  }
+
+  public static void logWarning(String msg) {
+    Log.w(TAG, msg);
   }
 
   public static void logDebug(String msg) {

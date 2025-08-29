@@ -145,7 +145,7 @@ namespace Google.Impl {
 
 		public void onFailure(AndroidJavaObject exception)
 		{
-			Debug.LogErrorFormat("onFailure {0} : {1}",exception?.Call<AndroidJavaObject>("getClass").Call<string>("toString"),exception?.Call<string>("getMessage"));
+			Debug.LogWarningFormat("onFailure {0} : {1}",exception?.Call<AndroidJavaObject>("getClass").Call<string>("toString"),exception?.Call<string>("getMessage"));
 			exception.Dispose();
 		}
 
@@ -187,31 +187,31 @@ namespace Google.Impl {
 	internal static IntPtr GoogleSignIn_Result(HandleRef self) => googleIdTokenCredential.GetRawObject();
 
 	internal static int GoogleSignIn_Status(HandleRef self) => GoogleSignInHelper.CallStatic<int>("getStatus");
-
+	
 	internal static string GoogleSignIn_GetServerAuthCode(HandleRef self) => authorizationResult?.Call<string>("getServerAuthCode");
 
 	internal static string GoogleSignIn_GetUserId(HandleRef self)
 	{
+		string idTokenFull = null;
 		try
 		{
-			string idTokenFull = googleIdTokenCredential?.Call<string>("getIdToken");
-			string idTokenPart = idTokenFull?.Split('.')?.ElementAtOrDefault(1);
-			if(!(idTokenPart?.Length > 1))
+			idTokenFull = googleIdTokenCredential?.Call<string>("getIdToken");
+			var idTokenPart = idTokenFull?.Split('.')?.ElementAtOrDefault(1);
+			if(!(idTokenPart?.Length is int length && length > 1))
 				return null;
 
 			// Replace URL-safe characters and fix padding
 			idTokenPart = idTokenPart.Replace('-', '+').Replace('_', '/');
-			int mod = idTokenPart.Length % 4;
-			if(mod > 0)
-				idTokenPart += new string('=',4 - mod);
-			var idTokenFromBase64 = Convert.FromBase64String(idTokenPart);
+			string fill = new string('=',(4 - (idTokenPart.Length % 4)) % 4);
+			var idTokenFromBase64 = Convert.FromBase64String(idTokenPart + fill);
 			var idToken = Encoding.UTF8.GetString(idTokenFromBase64);
 			var jobj = Newtonsoft.Json.Linq.JObject.Parse(idToken);
 			return jobj?["sub"]?.ToString();
 		}
 		catch(Exception e)
 		{
-			Debug.LogException(e);
+			// Debug.LogException(new Exception($"GoogleSignIn_GetUserId.idTokenFull {idTokenFull}"));
+			Debug.LogWarning(e.ToString());
 			return null;
 		}
 	}
@@ -300,7 +300,7 @@ namespace Google.Impl {
 
 	[DllImport(DllName)]
 	internal static extern UIntPtr GoogleSignIn_GetUserId(HandleRef self, [In, Out] byte[] bytes, UIntPtr len);
-
+		
 	internal static string GoogleSignIn_GetServerAuthCode(HandleRef self) =>
 		OutParamsToString((out_string, out_size) => GoogleSignIn_GetServerAuthCode(self, out_string, out_size));
 
@@ -362,7 +362,7 @@ namespace Google.Impl {
 				return constructorInfo.Invoke(new object[] { intPtr }) as AndroidJavaObject;
 #endif
 			} catch (Exception e) {
-				Debug.LogError("Exception creating AndroidJavaObject: " + e);
+				Debug.LogWarning("Exception creating AndroidJavaObject: " + e);
 				return null;
 			}
 		}
